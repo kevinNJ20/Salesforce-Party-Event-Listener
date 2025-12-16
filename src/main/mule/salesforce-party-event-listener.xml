@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+  xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+  xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+  xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq"
+  xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+  xmlns:http="http://www.mulesoft.org/schema/mule/http"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+  http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+  http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd
+  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+  <!-- Webhook endpoint for Person Account Events from Salesforce -->
+  <flow name="person-account-event-listener" doc:name="person-account-event-listener">
+    <http:listener doc:name="POST /events/person-account" config-ref="HTTP_Listener_config" path="/events/person-account" allowedMethods="POST"/>
+    
+    <logger level="INFO" message="Received Person Account event from Salesforce: #[payload]" doc:name="Log Event"/>
+    
+    <try doc:name="Try">
+      <ee:transform doc:name="Transform to Customer Update Message">
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var event = payload
+---
+{
+  eventType: "customer.update",
+  customerId: event.Id default event.id,
+  customerNumber: event.AccountNumber default event.accountNumber,
+  firstName: event.FirstName default event.firstName,
+  lastName: event.LastName default event.lastName,
+  email: event.PersonEmail default event.personEmail,
+  phone: event.Phone default event.phone,
+  taxId: event.TaxId__c default event.taxId,
+  status: event.Status__c default event.status default "Active",
+  timestamp: now()
+}]]></ee:set-payload>
+        </ee:message>
+      </ee:transform>
+
+      <anypoint-mq:publish doc:name="Publish to Party Roles Topic" config-ref="Anypoint_MQ_Config" destination="Party Roles Topic">
+        <anypoint-mq:message>
+          <anypoint-mq:body><![CDATA[#[payload]]]></anypoint-mq:body>
+        </anypoint-mq:message>
+      </anypoint-mq:publish>
+
+      <logger level="INFO" message="Published customer update to Party Roles Topic" doc:name="Log Success"/>
+      
+      <http:response statusCode="200" doc:name="HTTP Response">
+        <http:body><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: "success",
+  message: "Event processed successfully"
+}]]></http:body>
+      </http:response>
+
+      <error-handler>
+        <on-error-continue type="ANYPOINT-MQ:PUBLISH" enableNotifications="true" logException="true" doc:name="MQ Error">
+          <logger level="ERROR" message="Error publishing to MQ: #[error.description]" doc:name="Log MQ Error"/>
+          <http:response statusCode="500" doc:name="HTTP Error Response">
+            <http:body><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: "error",
+  message: "Failed to publish event to MQ"
+}]]></http:body>
+          </http:response>
+        </on-error-continue>
+      </error-handler>
+    </try>
+  </flow>
+
+  <!-- Webhook endpoint for Contact Events from Salesforce -->
+  <flow name="contact-event-listener" doc:name="contact-event-listener">
+    <http:listener doc:name="POST /events/contact" config-ref="HTTP_Listener_config" path="/events/contact" allowedMethods="POST"/>
+    
+    <logger level="INFO" message="Received Contact event from Salesforce: #[payload]" doc:name="Log Event"/>
+    
+    <try doc:name="Try">
+      <ee:transform doc:name="Transform to Individual Update Message">
+        <ee:message>
+          <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var event = payload
+---
+{
+  eventType: "individual.update",
+  contactId: event.Id default event.id,
+  firstName: event.FirstName default event.firstName,
+  lastName: event.LastName default event.lastName,
+  email: event.Email default event.email,
+  phone: event.Phone default event.phone,
+  accountId: event.AccountId default event.accountId,
+  timestamp: now()
+}]]></ee:set-payload>
+        </ee:message>
+      </ee:transform>
+
+      <anypoint-mq:publish doc:name="Publish to Parties Topic" config-ref="Anypoint_MQ_Config" destination="Parties Topic">
+        <anypoint-mq:message>
+          <anypoint-mq:body><![CDATA[#[payload]]]></anypoint-mq:body>
+        </anypoint-mq:message>
+      </anypoint-mq:publish>
+
+      <logger level="INFO" message="Published individual update to Parties Topic" doc:name="Log Success"/>
+      
+      <http:response statusCode="200" doc:name="HTTP Response">
+        <http:body><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: "success",
+  message: "Event processed successfully"
+}]]></http:body>
+      </http:response>
+
+      <error-handler>
+        <on-error-continue type="ANYPOINT-MQ:PUBLISH" enableNotifications="true" logException="true" doc:name="MQ Error">
+          <logger level="ERROR" message="Error publishing to MQ: #[error.description]" doc:name="Log MQ Error"/>
+          <http:response statusCode="500" doc:name="HTTP Error Response">
+            <http:body><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: "error",
+  message: "Failed to publish event to MQ"
+}]]></http:body>
+          </http:response>
+        </on-error-continue>
+      </error-handler>
+    </try>
+  </flow>
+
+</mule>
+
