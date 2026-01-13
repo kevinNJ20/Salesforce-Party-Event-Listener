@@ -3,12 +3,10 @@
   xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
   xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
   xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq"
-  xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
   xmlns:http="http://www.mulesoft.org/schema/mule/http"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
   http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
-  http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
   http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd
   http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
 
@@ -41,35 +39,55 @@ var event = payload
       </ee:transform>
 
       <anypoint-mq:publish doc:name="Publish to Party Roles Topic" config-ref="Anypoint_MQ_Config" destination="Party Roles Topic">
-        <anypoint-mq:message>
-          <anypoint-mq:body><![CDATA[#[payload]]]></anypoint-mq:body>
-        </anypoint-mq:message>
+        <anypoint-mq:body><![CDATA[#[payload]]]></anypoint-mq:body>
       </anypoint-mq:publish>
 
       <logger level="INFO" message="Published customer update to Party Roles Topic" doc:name="Log Success"/>
       
-      <http:response statusCode="200" doc:name="HTTP Response">
-        <http:body><![CDATA[%dw 2.0
+      <ee:transform doc:name="HTTP Response" doc:id="04694df4-b9b1-471d-b2fc-dbf1aa2c9060" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+
 output application/json
+
 ---
+
 {
+
   status: "success",
+
   message: "Event processed successfully"
-}]]></http:body>
-      </http:response>
+
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="httpStatus" ><![CDATA[200]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
 
       <error-handler>
-        <on-error-continue type="ANYPOINT-MQ:PUBLISH" enableNotifications="true" logException="true" doc:name="MQ Error">
+        <on-error-continue type="ANYPOINT-MQ:CONNECTIVITY" enableNotifications="true" logException="true" doc:name="MQ Error">
           <logger level="ERROR" message="Error publishing to MQ: #[error.description]" doc:name="Log MQ Error"/>
-          <http:response statusCode="500" doc:name="HTTP Error Response">
-            <http:body><![CDATA[%dw 2.0
+					<ee:transform doc:name="HTTP Response" doc:id="06300d37-e5e0-484c-a37a-9eb8b596e986" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+
 output application/json
+
 ---
+
 {
+
   status: "error",
+
   message: "Failed to publish event to MQ"
-}]]></http:body>
-          </http:response>
+
+}]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="httpStatus" ><![CDATA[500]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
         </on-error-continue>
       </error-handler>
     </try>
@@ -102,35 +120,54 @@ var event = payload
       </ee:transform>
 
       <anypoint-mq:publish doc:name="Publish to Parties Topic" config-ref="Anypoint_MQ_Config" destination="Parties Topic">
-        <anypoint-mq:message>
-          <anypoint-mq:body><![CDATA[#[payload]]]></anypoint-mq:body>
-        </anypoint-mq:message>
+        <anypoint-mq:body><![CDATA[#[payload]]]></anypoint-mq:body>
       </anypoint-mq:publish>
 
       <logger level="INFO" message="Published individual update to Parties Topic" doc:name="Log Success"/>
-      
-      <http:response statusCode="200" doc:name="HTTP Response">
-        <http:body><![CDATA[%dw 2.0
-output application/json
----
-{
-  status: "success",
-  message: "Event processed successfully"
-}]]></http:body>
-      </http:response>
 
-      <error-handler>
-        <on-error-continue type="ANYPOINT-MQ:PUBLISH" enableNotifications="true" logException="true" doc:name="MQ Error">
-          <logger level="ERROR" message="Error publishing to MQ: #[error.description]" doc:name="Log MQ Error"/>
-          <http:response statusCode="500" doc:name="HTTP Error Response">
-            <http:body><![CDATA[%dw 2.0
+      <ee:transform doc:name="HTTP Response" doc:id="5394500c-b0f9-42c2-9bef-719b82ec4136" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+
 output application/json
+
 ---
+
 {
+
+  status: "success",
+
+  message: "Event processed successfully"
+
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="httpStatus" ><![CDATA[200]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<error-handler>
+        <on-error-continue type="ANYPOINT-MQ:CONNECTIVITY" enableNotifications="true" logException="true" doc:name="MQ Error">
+          <logger level="ERROR" message="Error publishing to MQ: #[error.description]" doc:name="Log MQ Error"/>
+					<ee:transform doc:name="HTTP Response" doc:id="56c2ddac-99aa-4168-adc6-c93d4292a78b" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+
+output application/json
+
+---
+
+{
+
   status: "error",
+
   message: "Failed to publish event to MQ"
-}]]></http:body>
-          </http:response>
+
+}]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="httpStatus" ><![CDATA[500]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
         </on-error-continue>
       </error-handler>
     </try>
